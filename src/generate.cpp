@@ -266,7 +266,7 @@ void build_implementation(std::ostream& os, std::size_t current) {
 }
 
 int main() {
-  std::size_t max = 2;
+  std::size_t max = 128;
   boilerplate(std::cout, max);
   for (std::size_t i = 1; i <= max; ++i) {
     build_implementation(std::cout, i);
