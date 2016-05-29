@@ -38,8 +38,8 @@ void boilerplate(std::ostream& os, std::size_t max) {
 
   os << "#define end_adt() };\n";
   os << "#define adt(NAME, ...) VFUNC(adt, NAME, __VA_ARGS__)\n";
-  os << "#define adtr(NAME, ...) "
-    "enum error_incorrect_number_of_arguments_to_adt_for_##NAME;\n";
+  os << "#define adtr(NAME, ...) static_assert(false, "
+    "\"Incorrect number of arguments to adt(\" #NAME \", ...\");\n";
 
   os << "#define _impl_adt_real(T) "
     "std::conditional_t<std::is_void<T>::value, std::uint8_t, T>\n";
@@ -266,7 +266,7 @@ void build_implementation(std::ostream& os, std::size_t current) {
 }
 
 int main() {
-  std::size_t max = 128;
+  std::size_t max = 64;
   boilerplate(std::cout, max);
   for (std::size_t i = 1; i <= max; ++i) {
     build_implementation(std::cout, i);
