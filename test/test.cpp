@@ -25,7 +25,8 @@ struct dropper {
 
 adt(test,
   first, dropper,
-  second, std::string)
+  second, std::string,
+  third, void)
 
 end_adt()
 

@@ -12,17 +12,14 @@ void boilerplate(std::ostream& os, std::size_t max) {
   os << "#include <cstdint>\n";
   os << "#include <functional>\n";
 
-  os << "template<class... Ts> struct make_void{typedef void type;};\n";
-  os << "template<class... Ts> using void_t = "
-        "typename make_void<Ts...>::type;\n";
-  os << "#define VARIANT_NARG__(...) "
-        "VARIANT_NARG_I_(__VA_ARGS__, VARIANT_RSEQ_N())\n";
-  os << "#define VARIANT_NARG_I_(...) VARIANT_ARG_N(__VA_ARGS__)\n";
-  os << "#define VARIANT_ARG_N(NAME,";
+  os << "#define VARIANT_NARG_(...) "
+        "VARIANT_NARG_I_(__VA_ARGS__,VARIANT_RSEQ_N())\n";
+  os << "#define VARIANT_NARG_I_(...)VARIANT_ARG_N(__VA_ARGS__)\n";
+  os << "#define VARIANT_ARG_N(N,";
   for (std::size_t i = 1; i <= max; ++i) {
     os << "_" << (i * 2 - 1) << ",_" << (i * 2) << ",";
   }
-  os << "N, ...) N\n";
+  os << "M,...) M\n";
 
 
   os << "#define VARIANT_RSEQ_N() ";
@@ -31,18 +28,18 @@ void boilerplate(std::ostream& os, std::size_t max) {
   }
   os << 1 << ",r\n";
 
-  os << "#define _VFUNC_(NAME, N) NAME##N\n";
-  os << "#define _VFUNC(NAME, N)  _VFUNC_(NAME, N)\n";
-  os << "#define VFUNC(FUNC, ...) "
-        "_VFUNC(FUNC, VARIANT_NARG__(__VA_ARGS__)) (__VA_ARGS__)\n";
+  os << "#define _VFUNC_(N,M) N##M\n";
+  os << "#define _VFUNC(N,M) _VFUNC_(N,M)\n";
+  os << "#define VFUNC(FUNC,...) "
+        "_VFUNC(FUNC,VARIANT_NARG_(__VA_ARGS__)) (__VA_ARGS__)\n";
 
   os << "#define end_adt() };\n";
-  os << "#define adt(NAME, ...) VFUNC(adt, NAME, __VA_ARGS__)\n";
-  os << "#define adtr(NAME, ...) static_assert(false, "
-    "\"Incorrect number of arguments to adt(\" #NAME \", ...\");\n";
+  os << "#define adt(N,...) VFUNC(adt,N,__VA_ARGS__)\n";
+  os << "#define adtr(N,...) static_assert(false,"
+    "\"Incorrect number of arguments to adt(\"#N\", ...\");\n";
 
   os << "#define _impl_adt_real(T) "
-    "std::conditional_t<std::is_void<T>::value, std::uint8_t, T>\n";
+    "std::conditional_t<std::is_void<T>::value,char,T>\n";
   os << "\n";
   os.setf(old_flags);
 }
@@ -55,8 +52,8 @@ void build_implementation(std::ostream& os, std::size_t current) {
   os << std::hex;
   std::stringstream args_ss;
   std::stringstream call_ss;
-  args_ss << std::hex << current << "(NAME";
-  call_ss << std::hex << current - 1 << "(NAME";
+  args_ss << std::hex << current << "(N";
+  call_ss << std::hex << current - 1 << "(N";
   for (std::size_t i = 0; i < current; ++i) {
     args_ss << ",V" << i + 1 << ",T" << i + 1;
   }
@@ -92,18 +89,14 @@ void build_implementation(std::ostream& os, std::size_t current) {
   //   private
   os << "#define _impl_adt_D" << args;
   if (current == 1) {
-    os << "data(){std::memset(reinterpret_cast<void*>(this),0,sizeof(*this));}";
-    os << "~data(){}";
-    os << "data(data const& d){";
-    os <<   "std::memcpy(reinterpret_cast<void*>(this),";
-    os <<     "reinterpret_cast<void const*>(&d), sizeof(*this));";
+    os << "data(){std::memset(this,0,sizeof(*this));}";
+    os << "~data()noexcept{}";
+    os << "data(data const& d)noexcept{";
+    os <<   "std::memcpy(this,&d,sizeof(*this));";
     os << "}";
-    os << "data(data&& d){";
-    os <<   "std::memcpy(reinterpret_cast<void*>(this),";
-    os <<     "reinterpret_cast<void const*>(&d), sizeof(*this));";
+    os << "data& operator=(data const& d)noexcept{";
+    os <<   "new(this) data(d);return *this;";
     os << "}";
-    os << "data& operator=(data const& d){new(this) data(d);return *this;}";
-    os << "data& operator=(data&& d){new(this) data(d);return *this;}";
     os << "";
   } else {
     os << "_impl_adt_D" << call;
@@ -153,7 +146,7 @@ void build_implementation(std::ostream& os, std::size_t current) {
   if (current == 1) {
     // unsafe to call constructor, as if it were destructed,
     // the variant would be destroyed without ever being constructed
-    os << "private:" "NAME(kind k):kind_(k){}" "public:";
+    os << "private:" "N(kind k):kind_(k){}" "public:";
   } else {
     os << "_impl_adt_M" << call;
   }
@@ -162,23 +155,23 @@ void build_implementation(std::ostream& os, std::size_t current) {
   // the "default constructors" are only callable on void variants
   os << "template<class T=" << type << ",";
   os <<   "class=std::enable_if_t<!std::is_void<T>::value>>";
-  os << "static NAME " << var << "(_impl_adt_real(" << type << ")const& t){";
-  os <<   "NAME ret(kind::" << var << ");";
+  os << "static N " << var << "(_impl_adt_real(" << type << ")const& t){";
+  os <<   "N ret(kind::" << var << ");";
   os <<   "try{new(&ret.data_." << var << ")T(t);}catch(...){std::terminate();}";
   os <<   "return ret;";
   os << "}";
   os << "template<class T=" << type << ",";
   os <<   "class=std::enable_if_t<!std::is_void<T>::value>>";
-  os << "static NAME " << var << "(_impl_adt_real(" << type << ")&& t){";
-  os <<   "NAME ret(kind::" << var << ");";
+  os << "static N " << var << "(_impl_adt_real(" << type << ")&& t){";
+  os <<   "N ret(kind::" << var << ");";
   os <<   "try{new(&ret.data_." << var << ")T(";
   os <<       "std::move(t));}catch(...){std::terminate();}";
   os <<   "return ret;";
   os << "}";
   os << "template<class T=" << type;
   os <<   ",class=std::enable_if_t<std::is_void<T>::value>>";
-  os << "static NAME " << var << "(){";
-  os <<   "NAME ret(kind::" << var << ");";
+  os << "static N " << var << "(){";
+  os <<   "N ret(kind::" << var << ");";
   os <<   "return ret;";
   os << "}\n";
 
@@ -224,7 +217,7 @@ void build_implementation(std::ostream& os, std::size_t current) {
 
   // tenth: the definition itself
   os << "#define adt" << args << " ";
-  os << "class NAME {";
+  os << "class N{";
   os << "public:";
   os <<   "enum class kind{";
   os <<     "_impl_adt_K" << args;
@@ -240,21 +233,21 @@ void build_implementation(std::ostream& os, std::size_t current) {
   os <<   "public:";
   os <<     "_impl_adt_MM" << args;
   os <<   "};";
-  os <<   "friend void swap(NAME& l, NAME& r){";
+  os <<   "friend void swap(N& l, N& r){";
   os <<     "std::swap(l.kind_,r.kind_);";
   os <<     "std::swap(l.data_,r.data_);";
   os <<   "}";
-  os <<   "NAME(NAME const& a):NAME(a.kind_){";
+  os <<   "N(N const& a):N(a.kind_){";
   os <<     "switch(kind_){_impl_adt_Cc" << args << "}";
   os <<   "}";
-  os <<   "NAME(NAME&& a):NAME(a.kind_){";
+  os <<   "N(N&& a):N(a.kind_){";
   os <<     "switch(kind_){_impl_adt_Mc" << args << "}";
   os <<   "}";
-  os <<   "NAME& operator=(NAME o){";
+  os <<   "N& operator=(N o){";
   os <<     "swap(*this,o);";
   os <<     "return *this;";
   os <<   "}";
-  os <<   "~NAME(){";
+  os <<   "~N(){";
   os <<     "switch(kind_){_impl_adt_Ds" << args << "}";
   os <<   "}";
   os <<   "_impl_adt_M" << args;
@@ -266,7 +259,7 @@ void build_implementation(std::ostream& os, std::size_t current) {
 }
 
 int main() {
-  std::size_t max = 64;
+  std::size_t max = 32;
   boilerplate(std::cout, max);
   for (std::size_t i = 1; i <= max; ++i) {
     build_implementation(std::cout, i);
