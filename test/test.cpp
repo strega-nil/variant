@@ -2,38 +2,37 @@
 #include <string>
 #include <iostream>
 
-struct dropper {
-  dropper() {
+struct Dropper {
+  Dropper() {
     std::cout << "default constructor\n";
   }
-  ~dropper() { std::cout << "destructor\n"; }
-  dropper(dropper const& other) {
+  ~Dropper() { std::cout << "destructor\n"; }
+  Dropper(Dropper const& other) {
     std::cout << "copy constructor\n";
   }
-  dropper& operator=(dropper const& other) {
+  Dropper& operator=(Dropper const& other) {
     std::cout << "copy assignment\n";
     return *this;
   }
-  dropper(dropper&& other) {
+  Dropper(Dropper&& other) {
     std::cout << "move constructor\n";
   }
-  dropper& operator=(dropper&& other) {
+  Dropper& operator=(Dropper&& other) {
     std::cout << "move assignment\n";
     return *this;
   }
 };
 
-adt(test,
-  first, dropper,
-  second, std::string,
-  third, void)
-
+adt(Test,
+  First, Dropper,
+  Second, std::string,
+  Third, void)
 end_adt()
 
 int main() {
-  auto t = test::first({});
-  t = test::second("Hello, world");
-  t.match(test::matcher()
-    .second([](auto x){std::cout << x << "\n";})
+  auto t = Test::First({});
+  t = Test::Second("Hello, world");
+  t.match(Test::matcher()
+    .Second([](auto x){std::cout << x << "\n";})
   );
 }
